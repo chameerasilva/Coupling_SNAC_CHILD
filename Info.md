@@ -27,3 +27,5 @@ EntryPoint_Append(
 	/*CCCCC*/
 
 These functions are implemented at https://github.com/chameerasilva/Coupling_SNAC_CHILD/blob/master/SNAC_CHILD/Snac/libSnac/src/UpdateNode.c 
+
+UpdateNodeMomentum_DiffTopo || UpdateNodeMomentum_UpdateInteriorTopo || UpdateNodeMomentum_AdjustEdgeTopo
