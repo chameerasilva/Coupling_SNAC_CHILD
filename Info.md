@@ -85,7 +85,15 @@ childInterface.cpp: In member function ‘double childInterface::GetZCoordinate(
 childInterface.cpp:1415:15: error: ordered comparison of pointer with integer zero (‘tLNode*’ and ‘int’)
  1415 |    if( my_node<=0 ) return( -9999 );   // Temporary hacked NODATA code
       |        ~~~~~~~^~~
-{solutions}
+
+{solutions}    if( output > 0 && time->CheckOutputTime() )     --->      ( output != nullptr && time->CheckOutputTime() )
+			 
+{error04} 
+	../child/Code/ChildInterface/../tMesh/tMesh.cpp:2927:22: error: ordered comparison of pointer with integer zero (‘tLNode*’ and ‘int’)
+ 2927 |           assert( cn > 0 );
+      |                   ~~~^~~
+
+{solution}  assert( cn > 0 );  -->   assert( cn != nullptr );
 			 
 ====================================================== there are other erros to debug =======================================
 			 
@@ -112,6 +120,7 @@ cd ../CHILD (make) -->{ libchild.so}
  3469 |   if( cn->getVegCover().getTrees() > 0 )
 	
 {Solution}   if( cn->getVegCover().getTrees() > 0 ) -->   if( cn->getVegCover().getTrees() != nullptr )
+	     if( output > 0 && output->OptTSOutput() ) -->
 
 
 {error 04}  
