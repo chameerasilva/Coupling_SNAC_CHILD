@@ -29,3 +29,109 @@ EntryPoint_Append(
 These functions are implemented at https://github.com/chameerasilva/Coupling_SNAC_CHILD/blob/master/SNAC_CHILD/Snac/libSnac/src/UpdateNode.c 
 
 UpdateNodeMomentum_DiffTopo || UpdateNodeMomentum_UpdateInteriorTopo || UpdateNodeMomentum_AdjustEdgeTopo
+
+
+Step 02 
+==================
+cd childInterface  (make) -->{ libchildInterface.so}
+
+{error 01} in line 2177 in ../child/Code/ChildInterface/../tMesh/tMesh.cpp:
+
+no match for ‘operator<<’ (operand types are ‘std::basic_ostream<char>’ and ‘std::ifstream’ {aka ‘std::basic_ifstream<char>’})
+	std::cout << "finished reading file," << gridfile << std::endl;
+      |   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ^~ ~~~~~~~~
+      |             |                              |
+      |             std::basic_ostream<char>       std::ifstream {aka std::basic_ifstream<char>}
+
+{solution}
+	replace gridfile with arcgridfilenm
+	
+{error 02}  ../child/Code/ChildInterface/../tMesh/tMesh.cpp:4447:19: error: ordered comparison of pointer with integer zero (‘tEdge*’ and ‘int’)
+ 4447 |   assert( bndyedg > 0 );
+      |           ~~~~~~~~^~~
+
+{solution}  assert( bndyedg > 0 ) --> assert( bndyedg != nullptr )
+	
+{error 03}../child/Code/ChildInterface/../Erosion/erosion.h:1003:20: error: ordered comparison of pointer with integer zero (‘tPtrList<tLNode>*’ and ‘int’)
+   1003 |   if( slideCluster > 0 ) delete slideCluster;
+to 1009 same repeating error 
+	
+{solution} ( slideCluster > 0 ) ---> ( slideCluster != nullptr )
+	
+{error 03} ../child/Code/ChildInterface/../Erosion/erosion.h:1072:40: error: ordered comparison of pointer with integer zero (‘tEdge*’ and ‘int’)
+ 1072 | {return ( DF->getAtPtr()->getFlowEdg() > 0 &&
+
+{solution} [DF->getAtPtr()->getFlowEdg() > 0 &&]  --> [DF->getAtPtr()->getFlowEdg() != nullptr &&] 
+
+{errors} in childInterface.cpp
+	
+	g++ -g -fPIC -I. -I../child/Code/ChildInterface -c childInterface.cpp
+childInterface.cpp: In member function ‘double childInterface::RunOneStorm()’:
+childInterface.cpp:1041:14: error: ordered comparison of pointer with integer zero (‘tLOutput<tLNode>*’ and ‘int’)
+ 1041 |   if( output > 0 && time->CheckOutputTime() )
+      |       ~~~~~~~^~~
+childInterface.cpp:1044:14: error: ordered comparison of pointer with integer zero (‘tLOutput<tLNode>*’ and ‘int’)
+ 1044 |   if( output > 0 && output->OptTSOutput() ) output->WriteTSOutput();
+      |       ~~~~~~~^~~
+childInterface.cpp: In member function ‘double childInterface::GetXCoordinate(int, int)’:
+childInterface.cpp:1358:15: error: ordered comparison of pointer with integer zero (‘tLNode*’ and ‘int’)
+ 1358 |    if( my_node<=0 ) return( -9999 );   // Temporary hacked NODATA code
+      |        ~~~~~~~^~~
+childInterface.cpp: In member function ‘double childInterface::GetYCoordinate(int, int)’:
+childInterface.cpp:1384:15: error: ordered comparison of pointer with integer zero (‘tLNode*’ and ‘int’)
+ 1384 |    if( my_node<=0 ) return( -9999 );   // Temporary hacked NODATA code
+      |        ~~~~~~~^~~
+childInterface.cpp: In member function ‘double childInterface::GetZCoordinate(int, int)’:
+childInterface.cpp:1415:15: error: ordered comparison of pointer with integer zero (‘tLNode*’ and ‘int’)
+ 1415 |    if( my_node<=0 ) return( -9999 );   // Temporary hacked NODATA code
+      |        ~~~~~~~^~~
+{solutions}
+			 
+====================================================== there are other erros to debug =======================================
+			 
+Step 03         
+===========
+cd ../CHILD (make) -->{ libchild.so}
+	
+{error 01}  
+	
+../Code/Erosion/erosion.cpp:2925:16: error: ordered comparison of pointer with integer zero (‘tLNode*’ and ‘int’)
+ 2925 |       assert( n>0 );
+      |               ~^~
+{Solution}  assert( n>0 ) --> assert( n != nullptr );
+	
+{error 02} 
+	
+	../Code/Erosion/erosion.cpp:3167:11: error: ordered comparison of pointer with integer zero (‘tTriangle*’ and ‘int’)
+ 3167 |     if( gt>0 )
+
+{Solution}   if( gt>0 ) -->  if( gt != nullptr )
+	
+{error 03} 
+	../Code/Erosion/erosion.cpp:3469:36: error: ordered comparison of pointer with integer zero (‘tTrees*’ and ‘int’)
+ 3469 |   if( cn->getVegCover().getTrees() > 0 )
+	
+{Solution}   if( cn->getVegCover().getTrees() > 0 ) -->   if( cn->getVegCover().getTrees() != nullptr )
+
+
+{error 04}  
+	../Code/Erosion/erosion.cpp:3536:15: error: ordered comparison of pointer with integer zero (‘tTriangle*’ and ‘int’)
+ 3536 |            ct > 0
+{solution}    ct > 0  -->  ct != nullptr 
+	
+{error 05}  
+	../Code/Erosion/erosion.cpp:3947:14: error: ordered comparison of pointer with integer zero (‘tDF_RunOut*’ and ‘int’)
+ 3947 |   if( runout > 0 ) delete runout;
+ 3948 |   if( scour > 0 ) delete scour;
+ 3949 |   if( deposit > 0 ) delete deposit;
+ 3950 |   if( DF_fsPtr > 0 ) delete DF_fsPtr;
+ 3951 |   if( DF_Hyd_fsPtr > 0 ) delete DF_Hyd_fsPtr;
+
+{solution}  if( runout > 0 ) -->  if( runout != nullptr ) 
+	    if( scour > 0 ) -->  if( scour != nullptr )
+	    if( deposit > 0 ) --> if( deposit != nullptr )
+	    if( DF_fsPtr > 0 ) --> if( DF_fsPtr != nullptr )
+	    if( DF_Hyd_fsPtr > 0 ) --> if( DF_Hyd_fsPtr != nullptr )
+			 
+			 
+	
