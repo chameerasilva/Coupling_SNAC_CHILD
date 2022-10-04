@@ -132,6 +132,46 @@ cd ../CHILD (make) -->{ libchild.so}
 	    if( deposit > 0 ) --> if( deposit != nullptr )
 	    if( DF_fsPtr > 0 ) --> if( DF_fsPtr != nullptr )
 	    if( DF_Hyd_fsPtr > 0 ) --> if( DF_Hyd_fsPtr != nullptr )
-			 
-			 
+	
+{error 06}  
+	../Code/Erosion/erosion.cpp:6261:17: error: ordered comparison of pointer with integer zero (‘tLayer*’ and ‘int’)
+ 6261 |       if( soilP > 0 )
+
+{solution}   if( soilP > 0 ) -->  if( soilP != nullptr ) 
+	
+{error 07}
+	../Code/Erosion/erosion.cpp:6389:40: error: ordered comparison of pointer with integer zero (‘tTrees*’ and ‘int’)
+ 6389 |       if( cn->getVegCover().getTrees() > 0 )
+	
+{solution}  if( cn->getVegCover().getTrees() > 0 ) -->    if( cn->getVegCover().getTrees() != nullptr )
+	
+{error 08} 
+	../Code/Erosion/erosion.cpp:6468:40: error: ordered comparison of pointer with integer zero (‘tTrees*’ and ‘int’)
+ 6468 |       if( cn->getVegCover().getTrees() > 0 )
+      |           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^~~
+	
+{solution}   if( cn->getVegCover().getTrees() > 0 ) -->   if( cn->getVegCover().getTrees() != nullptr )
+	
+{error 09} 
+	../Code/Erosion/erosion.cpp:6786:46: error: ordered comparison of pointer with integer zero (‘tTrees*’ and ‘int’)
+ 6786 |             if( cn->getVegCover().getTrees() > 0 )
+      |                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^~~
+
+{solution}   if( cn->getVegCover().getTrees() > 0 ) -->  if( cn->getVegCover().getTrees() != nullptr )
+	
+{error 10}
+	../Code/Erosion/erosion.cpp:6872:50: error: ordered comparison of pointer with integer zero (‘tTrees*’ and ‘int’)
+ 6872 |                 if( cn->getVegCover().getTrees() > 0 )
+      |                     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^~~
+
+{solution}   if( cn->getVegCover().getTrees() > 0 ) --> if( cn->getVegCover().getTrees() !=nullptr )
+	
+{error 11}
+	../Code/Erosion/erosion.cpp:6888:46: error: ordered comparison of pointer with integer zero (‘tTrees*’ and ‘int’)
+ 6888 |             if( cn->getVegCover().getTrees() > 0 )
+      |                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^~~
+{solution}    if( cn->getVegCover().getTrees() > 0 )  --> if( cn->getVegCover().getTrees() != nullptr )
+	
+	
+	
 	
