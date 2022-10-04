@@ -172,6 +172,67 @@ cd ../CHILD (make) -->{ libchild.so}
       |                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^~~
 {solution}    if( cn->getVegCover().getTrees() > 0 )  --> if( cn->getVegCover().getTrees() != nullptr )
 	
+{error 12} 
+	../Code/Erosion/../tUplift/../tMesh/../tMeshList/tMeshList.h:279:16: error: ‘insertAtNext’ was not declared in this scope, and no declarations were found by argument-dependent lookup at the point of instantiation [-fpermissive]
+  279 |    insertAtNext( value, lastactive );
+
+{Solution}  insertAtNext( value, lastactive ); --> this->insertAtNext( value, lastactive );
 	
+{error 13}
+	../Code/tStreamMeander/../tStreamNet/../tUplift/../tMesh/../tMeshList/tMeshList.h:418:39: error: ‘getListNode’ was not declared in this scope, and no declarations were found by argument-dependent lookup at the point of instantiation [-fpermissive]
+  418 |    ListNodeType * mvnode = getListNode( mvnodedata );
+
+{solution} getListNode( mvnodedata ); --> this ->getListNode( mvnodedata );
+
+{error 14} 
+	../Code/tStreamNet/tStreamNet.cpp:3203:14: error: ordered comparison of pointer with integer zero (‘tLNode*’ and ‘int’)
+ 3203 |       if( on > 0 )
+      |           ~~~^~~
+{Solution}  if( on > 0 ) -->  if( on != nullptr )
+
+{error 15} 
+	../Code/tStreamNet/tStreamNet.cpp:3218:25: error: ordered comparison of pointer with integer zero (‘tLNode*’ and ‘int’)
+ 3218 |             } while( dn > 0 && dn->getBoundaryFlag() == kNonBoundary );
+      |                      ~~~^~~
+
+{solution}  while( dn > 0 && dn->getBoundaryFlag() == kNonBoundary ); --> while( dn != nullptr && dn->getBoundaryFlag() == kNonBoundary );
 	
+{error 16}
+	../Code/globalFns.cpp:1002:22: error: ordered comparison of pointer with integer zero (‘tLNode*’ and ‘int’)
+ 1002 |           if( nxtPtr > 0 && nxtPtr->isNonBoundary() )
+      |               ~~~~~~~^~~
+
+{solution}    if( nxtPtr > 0 && nxtPtr->isNonBoundary() ) -->  if( nxtPtr != nullptr && nxtPtr->isNonBoundary() )
 	
+{error 17} 
+	../Code/globalFns.cpp:1030:22: error: ordered comparison of pointer with integer zero (‘tLNode*’ and ‘int’)
+ 1030 |           if( nxtPtr > 0 && nxtPtr->isNonBoundary() )
+      |               ~~~~~~~^~~
+
+{solution}    if( nxtPtr > 0 && nxtPtr->isNonBoundary() ) -->   if( nxtPtr != nullptr && nxtPtr->isNonBoundary() )
+	
+{error 18} 
+	../Code/tVegetation/tVegetation.cpp:576:14: error: ordered comparison of pointer with integer zero (‘tTriangle*’ and ‘int’)
+  576 |       if( nt > 0 )
+
+{solution}   if( nt > 0 ) -->  if( nt != nullptr )
+	
+**undefined reference to `predicate'** {bunch of these printed out }
+--------------------------------------------------------------------------------------------------------------------------------------------------------	
+	g++ -pedantic -Wall -W -Wwrite-strings -Wpointer-arith -Wcast-qual -Wcast-align -Wold-style-cast -g  -O2  -o libchild.  erosion.o meshElements.o mathutil.o tInputFile.o tLNode.o tRunTimer.o tStreamMeander.o meander.o tStorm.o tStreamNet.o tUplift.o errors.o tFloodplain.o tEolian.o globalFns.o predicates.o tVegetation.o tListInputData.o tStratGrid.o tOption.o tTimeSeries.o ParamMesh_t.o TipperTriangulator.o TipperTriangulatorError.o tIDGenerator.o tWaterSedTracker.o tLithologyManager.o 
+/usr/bin/ld: /usr/lib/gcc/x86_64-linux-gnu/11/../../../x86_64-linux-gnu/Scrt1.o: in function `_start':
+(.text+0x1b): undefined reference to `main'
+/usr/bin/ld: erosion.o: in function `tMesh<tLNode>::LocateTriangle(double, double, bool)':
+/home/chameera/Coupling_SNAC_CHILD/child/bin/../Code/Erosion/../tUplift/../tMesh/tMesh.cpp:4122: undefined reference to `predicate'
+/usr/bin/ld: meshElements.o: in function `tTriangle::NbrToward(double, double)':
+/home/chameera/Coupling_SNAC_CHILD/child/bin/../Code/MeshElements/meshElements.cpp:1004: undefined reference to `predicate'
+/usr/bin/ld: meshElements.o: in function `tTriangle::containsPoint(double, double) const':
+/home/chameera/Coupling_SNAC_CHILD/child/bin/../Code/MeshElements/meshElements.cpp:1029: undefined reference to `predicate'
+/usr/bin/ld: globalFns.o: in function `TriPasses(tArray<double> const&, tArray<double> const&, tArray<double> const&, tArray<double> const&)':
+/home/chameera/Coupling_SNAC_CHILD/child/bin/../Code/globalFns.cpp:105: undefined reference to `predicate'
+/usr/bin/ld: globalFns.o: in function `PointsCCW(tArray<double> const&, tArray<double> const&, tArray<double> const&)':
+/home/chameera/Coupling_SNAC_CHILD/child/bin/../Code/globalFns.cpp:174: undefined reference to `predicate'
+/usr/bin/ld: globalFns.o:/home/chameera/Coupling_SNAC_CHILD/child/bin/../Code/globalFns.cpp:192: more undefined references to `predicate' follow
+collect2: error: ld returned 1 exit status
+make: *** [Makefile:34: libchild.] Error 1
+-------------------------------------------------------------------------------------------------------------------------------------------------------
