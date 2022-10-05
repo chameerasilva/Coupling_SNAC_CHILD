@@ -95,7 +95,7 @@ childInterface.cpp:1415:15: error: ordered comparison of pointer with integer ze
 
 {solution}  assert( cn > 0 );  -->   assert( cn != nullptr );
 			 
-====================================================== there are other erros to debug =======================================
+{libchildInterface.so} created
 			 
 Step 03         
 ===========
@@ -244,4 +244,6 @@ cd ../CHILD (make) -->{ libchild.so}
 /usr/bin/ld: globalFns.o:/home/chameera/Coupling_SNAC_CHILD/child/bin/../Code/globalFns.cpp:192: more undefined references to `predicate' follow
 collect2: error: ld returned 1 exit status
 make: *** [Makefile:34: libchild.] Error 1
+
+libchild.so created
 -------------------------------------------------------------------------------------------------------------------------------------------------------
