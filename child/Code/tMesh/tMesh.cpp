@@ -308,6 +308,63 @@ runCheckMeshConsistency(checkMeshConsistency)
   
 }
 
+/**************************************************************************\
+ **
+ **   tMesh( numpts, pts, bmarker ): Constructs a mesh from a list of points 
+ **                                  boundary marekrs
+ **
+ **   Created: 12/07/22, EChoi
+ **   Calls: childInterface::initialize()
+ **
+ \**************************************************************************/
+template< class tSubNode >
+tMesh< tSubNode >::
+tMesh( const tInputFile &infile, const int npts, std::vector<double *> &points, std::vector<int> &bmarker, bool checkMeshConsistency )
+:
+xOffset(0.0),
+yOffset(0.0),
+nodeList(),
+mSearchOriginTriPtr(0),
+nnodes(0),
+nedges(0),
+ntri(0),
+miNextNodeID(0),
+miNextPermNodeID(0),
+miNextEdgID(0),
+miNextTriID(0),
+layerflag(false),
+runCheckMeshConsistency(checkMeshConsistency)
+{
+  
+  // As "layerflag" is used in this constructor, we compute it now.
+  layerflag =  infile.ReadBool( "OPTINTERPLAYER" );
+  
+  // option for reading/generating initial mesh
+  MakeMeshFromPoints( infile, npts, points, bmarker ); //create new mesh from list of points
+
+  // find geometric center of domain:
+  double cx = 0.0;
+  double cy = 0.0;
+  double sumarea = 0.0;
+  double carea;
+  nodeListIter_t nI( getNodeList() );
+  tNode* cn;
+  for( cn = nI.FirstP(); !nI.AtEnd(); cn = nI.NextP() )
+  {
+    carea = cn->getVArea();
+    cx += cn->getX() * carea;
+    cy += cn->getY() * carea;
+    sumarea += carea;
+  }
+  assert( sumarea>0.0 );
+  cx /= sumarea;
+  cy /= sumarea;
+  // find triangle in which these coordinates lie and designate it the
+  // search origin:
+  mSearchOriginTriPtr = LocateTriangle( cx, cy );
+  
+}
+
 //destructor
 template< class tSubNode >
 tMesh< tSubNode >::
@@ -2064,6 +2121,155 @@ MakeMeshFromPoints( const tInputFile &infile, int nox, int noy, double*** pts )
   std::cout << "3 NN: " << nnodes << " (" << nodeList.getActiveSize() << ") NE: " << nedges << " NT: " << ntri << std::endl;
   
   //MeshDensification( infile ); // optional mesh densification
+  
+  // Update Voronoi areas, edge lengths, etc., and test the consistency
+  // of the new mesh.
+  UpdateMesh();
+  CheckMeshConsistency( );
+  
+  // Clean up (probably not strictly necessary bcs destructors do the work)
+  supertriptlist.Flush();
+  
+  //XPtrListDebug::TellAll();
+  
+}
+
+
+/**************************************************************************\
+ **
+ **   tMesh::MakeMeshFromPoints
+ **
+ **   Constructs a mesh from a given set of (x,y,z,b) points, where
+ **   b=boundary code. Unlike MakeMeshFromInputData no connectivity
+ **   information is needed, just the coordinates and boundary codes.
+ **
+ **   The main functionality is the same with 
+ **   tMesh::MakeMeshFromPoints( const tInputFile &infile )
+ **   but the argument is a pointer to a point array: &pts[NP][4]:
+ **   where NP is the number of points in the file and the range of the
+ **   second index include x, y, z coords and the boundary code.
+ **
+ **   Calls: childInterface::Initialize()
+ **
+ **   Parameters: numpts  -- number of points.
+ **               pts     -- [numpts,3] array: i.e., x, y and z coords of each of numpts nodes.
+ **               bmarker -- [numpts] array containing boundary node marker.
+ **   Assumes: pts is a non-empty 2D array.
+ **   Created: 12/2022 EChoi
+ **
+ \**************************************************************************/
+template< class tSubNode >
+void tMesh< tSubNode >::
+MakeMeshFromPoints( const tInputFile &infile, const int numpts, std::vector<double *> &pts, std::vector<int> &bmarker)
+{
+  int i;                           // loop counter
+  tArray<double> x, y, z;          // arrays of x, y, and z coordinates
+  tArray<int> bnd;                 // array of boundary codes
+  double minx = 1e12, miny = 1e12, // minimum x and y coords
+  maxx = 0., maxy=0.,              // maximum x and y coords
+  dx, dy;                          // max width and height of region
+  tSubNode tempnode( infile ),     // temporary node used in creating new pts
+  *stp1, *stp2, *stp3;             // supertriangle vertices
+  
+  std::cout<<"MakeMeshFromPoints"<<std::endl;
+  
+  assert( numpts == pts.size() );
+  
+  x.setSize( numpts );
+  y.setSize( numpts );
+  z.setSize( numpts );
+  bnd.setSize( numpts );
+  for( i=0; i<numpts; i++ )
+  {
+	  x[i] = pts[i][0];
+	  y[i] = pts[i][1];
+	  z[i] = pts[i][2];
+    bnd[i] = 0; // 0 for interior.
+    if( bmarker[i] != 0 )
+		  bnd[i] = 2; // 2 for open, 1 for closed boundary.
+	  //std::cerr << x[i] <<" "<< y[i] <<" "<<z[i]<<" "<<bnd[i]<<std::endl;
+
+	  if( x[i]<minx ) minx = x[i];
+	  if( x[i]>maxx ) maxx = x[i];
+	  if( y[i]<miny ) miny = y[i];
+	  if( y[i]>maxy ) maxy = y[i];
+  }
+
+  std::cout << "finished reading in "<<numpts<<" points"<< std::endl;
+  dx = maxx - minx;
+  dy = maxy - miny;
+  
+  // Create the 3 nodes that form the supertriangle and place them on the
+  // node list in counter-clockwise order. (Note that the base and height
+  // of the supertriangle are 7 times the
+  // width and height, respectively, of the rectangle that encloses the
+  // points.) Assigning the IDs allows us to retrieve and delete these
+  // nodes when we're done creating the mesh.
+  std::cout << "creating supertri: min & max are (" << minx << "," << miny << ") (" << maxx << "," << maxy << ")\n";
+  
+  tempnode.set3DCoords( minx-3*dx, miny-3*dy, 0.0 );
+  tempnode.setBoundaryFlag( kClosedBoundary );
+  tempnode.setID( -1 );
+  nodeList.insertAtBack( tempnode );
+  tempnode.set3DCoords( maxx+3*dx, miny-3*dy, 0.0 );
+  tempnode.setID( -2 );
+  nodeList.insertAtBack( tempnode );
+  tempnode.set3DCoords( minx+0.5*dx, maxy+3*dy, 0.0 );
+  tempnode.setID( -3 );
+  nodeList.insertAtBack( tempnode );
+  
+  std::cout << "Supertri coords: " << minx-3*dx << "," << miny-3*dy << "  " << maxx+3*dx << "," << miny-3*dy << "  " << minx+0.5*dx << "," << maxy+3*dy << std::endl;
+  
+  // set # of nodes, edges, and triangles
+  nnodes = 3;
+  nedges = ntri = 0;
+  
+  // Create the edges that connect the supertriangle vertices and place
+  // them on the edge list.
+  // (To do this we need to retrieve pointers from the nodeList)
+  nodeListIter_t nodIter( nodeList );
+  stp1 = nodIter.FirstP();
+  stp2 = nodIter.NextP();
+  stp3 = nodIter.NextP();
+  AddEdge( stp1, stp2, stp3 );  // edges 1->2 and 2->1
+  AddEdge( stp2, stp3, stp1 );  // edges 2->3 and 3->2
+  AddEdge( stp3, stp1, stp2 );  // edges 3->1 and 1->3
+  
+  // set up the triangle itself and place it on the list. To do this, we
+  // just set up a list of pointers to the three nodes in the super tri
+  // and pass the list (along with an iterator) to MakeTriangle.
+  tPtrList<tSubNode> supertriptlist;
+  supertriptlist.insertAtBack( stp1 );
+  supertriptlist.insertAtBack( stp2 );
+  supertriptlist.insertAtBack( stp3 );
+  supertriptlist.makeCircular();
+  tPtrListIter<tSubNode> stpIter( supertriptlist );
+  MakeTriangle( supertriptlist, stpIter );
+  
+  std::cout << "1 NN: " << nnodes << " (" << nodeList.getActiveSize() << ")  NE: " << nedges << " NT: " << ntri << std::endl;
+  std::cout << "c4\n";
+  
+  // Now add the points one by one to construct the mesh.
+  for( i=0; i<numpts; i++ )
+  {
+    //std::cout << "IN MGFP c0, ADDING NODE " << i << std::endl;
+    //Xtempnode.setID( miNextNodeID );
+    tempnode.set3DCoords( x[i],y[i],z[i] );
+    tempnode.setBoundaryFlag( IntToBound(bnd[i]) );
+    //if(bnd[i]==kNonBoundary && z[i]<0)
+    //  std::cout<<"problem at x "<<x[i]<<" y "<<y[i]<<std::endl;
+    AddNode( tempnode );
+  }
+  
+  std::cout << "\n2 NN: " << nnodes << " (" << nodeList.getActiveSize() << ") NE: " << nedges << " NT: " << ntri << std::endl;
+  
+  // We no longer need the supertriangle, so remove it by deleting its
+  // vertices.
+  DeleteNode( stp1, kNoRepairMesh, kNoUpdateMesh );
+  DeleteNode( stp2, kNoRepairMesh, kNoUpdateMesh );
+  DeleteNode( stp3, kNoRepairMesh, kNoUpdateMesh );
+  std::cout << "3 NN: " << nnodes << " (" << nodeList.getActiveSize() << ") NE: " << nedges << " NT: " << ntri << std::endl;
+
   
   // Update Voronoi areas, edge lengths, etc., and test the consistency
   // of the new mesh.

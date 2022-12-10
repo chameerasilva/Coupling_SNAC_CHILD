@@ -29,15 +29,15 @@
 #include <string>
 #include <sstream>
 #include <vector>
-#include "../trapfpe.h"
-#include "../Inclusions.h"
-#include "../tFloodplain/tFloodplain.h"
-#include "../tStratGrid/tStratGrid.h"
-#include "../tEolian/tEolian.h"
-#include "../tOption/tOption.h"
-#include "../tWaterSedTracker/tWaterSedTracker.h"
-#include "../tMeshList/tMeshList.h"
-#include "../tLithologyManager/tLithologyManager.h"
+#include "trapfpe.h"
+#include "Inclusions.h"
+#include "tFloodplain/tFloodplain.h"
+#include "tStratGrid/tStratGrid.h"
+#include "tEolian/tEolian.h"
+#include "tOption/tOption.h"
+#include "tWaterSedTracker/tWaterSedTracker.h"
+#include "tMeshList/tMeshList.h"
+#include "tLithologyManager/tLithologyManager.h"
 
 using namespace std;
 
@@ -77,6 +77,7 @@ public:
   void Initialize( string argument_string );
   void Initialize( int argc, char **argv, int nox, int noy, double*** pts );
   void Initialize( string argument_string, int nox, int noy, double*** pts );
+  void Initialize( string argument_string, const int numpts, std::vector<double *> &pts, std::vector<int> &bmarker );
   vector<double> VaryParameters( const tInputFile &, const double &, tRand &, 
 				 bool yesVary = true ); 
   double RunOneStorm();
@@ -111,6 +112,8 @@ public:
   void ChangeOption( string option, int val );
   void ModifyCoords( double*** pts );
   void GetNewCoords( double*** pts );
+  void ModifyCoords( const std::vector<double *> &pts );
+  void GetNewCoords( std::vector<double *> &pts );
 
   // Additional custom functions to accompany IElement interface
   bool IsInteriorNode( int element_index );

@@ -576,6 +576,209 @@ Initialize( string argument_string, int nox, int noy, double*** pts )
   
 }
 
+
+/**************************************************************************/
+/**
+**  Initialize
+**
+**  This method takes a string storing a path to the input file,
+**    node numbers (nox, noy) and an array of size [nox*noy][3] of pointers
+**    to the node coordinates of the double type;
+**  and creates the necessary objects.
+**
+**  EC, December 2022.
+*/
+/**************************************************************************/
+void childInterface::
+Initialize( string argument_string, const int numpts, std::vector<double *> &pts, std::vector<int> &bmarker )
+{
+  
+  /****************** INITIALIZATION *************************************\
+   **  ALGORITHM
+   **    Get command-line arguments (name of input file + any other opts)
+   **    Set silent_mode flag
+   **    Open main input file
+   **    Create and initialize objects for...
+   **      Mesh
+   **      Output files
+   **      Storm
+   **      Stream network
+   **      Erosion
+   **      Uplift (or baselevel change)
+   **      Run timer
+   **    Write output for initial state
+   **    Get options for erosion type, meandering, etc.
+   \**********************************************************************/
+  
+  // Check command-line arguments
+  tOption option( argument_string );
+  
+  // Say hello
+  option.version();
+  
+  // Open main input file
+  tInputFile inputFile( option.inputFile );
+  
+  // Get various options
+  optNoDiffusion = inputFile.ReadBool( "OPTNODIFFUSION", false );
+  optNoFluvial = inputFile.ReadBool( "OPTNOFLUVIAL", false );
+  optNoUplift = inputFile.ReadBool( "OPTNOUPLIFT", false );
+  optDetachLim = inputFile.ReadBool( "OPTDETACHLIM" );
+  optDiffuseDepo = inputFile.ReadBool( "OPTDIFFDEP" );
+  optVegetation = inputFile.ReadBool( "OPTVEG" );
+  optForest = inputFile.ReadBool( "OPTFOREST", false );
+  optFire = inputFile.ReadBool( "OPTFIRE", false );
+  optFloodplainDep = inputFile.ReadBool( "OPTFLOODPLAIN" );
+  optLoessDep = inputFile.ReadBool( "OPTLOESSDEP" );
+  optMeander = inputFile.ReadBool( "OPTMEANDER" );
+  optStratGrid = inputFile.ReadBool( "OPTSTRATGRID" ,false);
+  optNonlinearDiffusion = inputFile.ReadBool( "OPT_NONLINEAR_DIFFUSION", false );
+  optDepthDependentDiffusion = 
+  inputFile.ReadBool( "OPT_DEPTH_DEPENDENT_DIFFUSION", false );
+  optLandslides = inputFile.ReadBool( "OPT_LANDSLIDES", false );
+  opt3DLandslides = inputFile.ReadBool( "OPT_3D_LANDSLIDES", false );
+  optChemicalWeathering = inputFile.ReadBool( "CHEM_WEATHERING_LAW", false );
+  optPhysicalWeathering = inputFile.ReadBool( "PRODUCTION_LAW", false );
+  optTrackWaterSedTimeSeries = 
+  inputFile.ReadBool( "OPT_TRACK_WATER_SED_TIMESERIES", false );
+  
+  
+  // Create a random number generator for the simulation itself
+  rand = new tRand( inputFile );
+  
+  // CREATE AND INITIALIZE OBJECTS
+  //
+  // Create (or read) model mesh
+  if( !option.silent_mode )
+    std::cout << "Creating mesh...\n";
+  //mesh = new tMesh<tLNode>( inputFile, option.checkMeshConsistency );
+  mesh = new tMesh<tLNode>(inputFile, numpts, pts, bmarker, option.checkMeshConsistency);
+  
+  // Initialize the lithology manager
+  lithology_manager_.InitializeFromInputFile( inputFile, mesh );
+  
+  // Create and initialize output object
+  if( !option.no_write_mode )
+  {
+    if( !option.silent_mode )
+      std::cout << "Creating output handler...\n";
+    output = new tLOutput<tLNode>( mesh, inputFile, rand );
+  }
+  
+  // Create and initialize storm object
+  storm = new tStorm( inputFile, rand, option.no_write_mode );
+  
+  // Create and initialize stream network object
+  if( !option.silent_mode )
+    std::cout << "Initializing stream network...\n";
+  strmNet = new tStreamNet( *mesh, *storm, inputFile );
+  optStreamLineBoundary = inputFile.ReadBool( "OPTSTREAMLINEBNDY", false );
+  // option to convert streamlines from specified points along streamlines
+  // into open boundary nodes; requires flow edges be set:
+  if( optStreamLineBoundary )
+  {
+    tPtrList< tLNode > streamList;
+    strmNet->FindStreamLines( inputFile, streamList );
+    mesh->MakeStreamLineBoundaries( streamList );
+    // do stuff in tStreamNet::UpdateNet(), but also need to do 
+    // tStreamNet::InitFlowDirs(), so call functions piecemeal:
+    strmNet->CalcSlopes();
+    strmNet->InitFlowDirs(); // TODO: should all be done in call to updatenet
+    strmNet->FlowDirs();
+    strmNet->CheckNetConsistency();
+    strmNet->MakeFlow( 0.0 );
+  }
+
+  // Create and initialize erosion/sedimentation object
+  if( !option.silent_mode )
+    std::cout << "Initializing erosion/transport/sedimentation...\n";
+  erosion = new tErosion( mesh, inputFile, option.no_write_mode );
+  
+  // Create and initialize tectonics/baselevel object
+  if( !optNoUplift )
+  {
+    if( !option.silent_mode )
+      std::cout << "Initializing tectonics/baselevel...\n";
+    uplift = new tUplift( inputFile );
+  }
+  
+  // Create and initialize run timer object:
+  time = new tRunTimer( inputFile, !option.silent_mode );
+  
+  // If applicable, create and initialize Vegetation object
+  if( optVegetation )
+  {
+    if( !option.silent_mode )
+      std::cout << "Initializing Vegetation module...\n";
+    if( optFire )
+    {
+      if( optForest )
+        vegetation = new tVegetation( mesh, inputFile, option.no_write_mode, 
+                                     time, storm );
+      else
+        vegetation = new tVegetation( mesh, inputFile, option.no_write_mode, 
+                                     time );
+    }
+    else
+      vegetation = new tVegetation( mesh, inputFile );
+  }
+  
+  // If applicable, create and initialize floodplain object
+  if( optFloodplainDep )
+  {
+    if( !option.silent_mode )
+      std::cout << "Initializing Floodplain module...\n";
+    floodplain = new tFloodplain( inputFile, mesh );
+  }
+  
+  // If applicable, create and initialize eolian deposition object
+  if( optLoessDep )
+  {
+    if( !option.silent_mode )
+      std::cout << "Initializing Eolian deposition module...\n";
+    loess = new tEolian( inputFile );
+  }
+  
+  // If applicable, create and initialize Stream Meander object
+  if( optMeander )
+  {
+    if( !option.silent_mode )
+      std::cout << "Initializing Stream Meander module...\n";
+    strmMeander = new tStreamMeander( *strmNet, *mesh, inputFile, rand );
+  }
+  
+  // If applicable, create and initialize Stratigraphy Grid object
+  // and pass it to output
+  if( optStratGrid ) {
+    if (!optFloodplainDep)
+      ReportFatalError("OPTFLOODPLAIN must be enabled.");
+    if( !option.silent_mode )
+      std::cout << "Initializing StratGrid module...\n";
+    stratGrid = new tStratGrid (inputFile, mesh);
+    if( output )
+      output->SetStratGrid( stratGrid, strmNet );
+  }
+  
+  // If applicable, set up tracking of water and sediment flux
+  if( optTrackWaterSedTimeSeries && !option.no_write_mode )
+  {
+    water_sed_tracker_.InitializeFromInputFile( inputFile, mesh );
+    erosion->ActivateSedVolumeTracking( &water_sed_tracker_ );
+  }
+  
+  // Write output for time zero
+  if( !option.silent_mode )
+    std::cout << "Writing data for time zero...\n";
+  if( output )
+    output->WriteOutput( 0. );
+  
+  // Finish up initialization
+  initialized = true;
+  if( !option.silent_mode ) 
+    std::cout << "******* Initialization done *******\n";
+  
+}
+
 /**************************************************************************/
 /**
  **  Initialize (argc, argv version)
@@ -2281,4 +2484,62 @@ GetNewCoords( double*** newCoords )
 	   //(reinterpret_cast<double *>(reinterpret_cast<double **>(newCoords)[cn->getPermID()]))[2] = cn->getY();
 		   (reinterpret_cast<double *>(reinterpret_cast<double **>(newCoords)[cn->getPermID()]))[1] = cn->getZ();
    }
+}
+
+/**************************************************************************/
+/**
+**  childInterface::ModifyCoords
+**
+**  Sets the new coordinates of nodes assuming to be coupled with 
+**  Lagrangian tectonic code.
+**
+**  EC, December 2022
+*/
+/**************************************************************************/
+void childInterface::
+ModifyCoords( const std::vector<double *> &newCoord )
+{
+   tLNode *cn;
+   tMesh<tLNode>::nodeListIter_t ni( mesh->getNodeList() );
+
+   for( cn=ni.FirstP(); !ni.AtEnd(); cn=ni.NextP() )
+   {
+	   double coordx = newCoord[cn->getPermID()][0];
+	   double coordy = newCoord[cn->getPermID()][1];
+	   double sign = ((cn->getPermID()%2)==0?-1.0:1.0);
+	   double rndx = 1.0 + 1.0e-6*sign; //(rand->ran3()-0.5);
+	   double rndy = 1.0 + 1.0e-6*sign; //(rand->ran3()-0.5);
+
+	   cn->setMovingStatus( true );
+	   cn->setNew2DCoords( coordx*rndx, coordy*rndy );
+	   cn->setZ( newCoord[cn->getPermID()][2] );
+	   //cn->ChangeZ( (reinterpret_cast<double *>((reinterpret_cast<double **>(newCoord))[cn->getPermID()]))[1] );
+   }
+   mesh->MoveNodes( 0., false );
+}
+
+/**************************************************************************/
+/**
+**  childInterface::GetNewCoords
+**
+**  Get x, y, and elevation after Run( dt ) and assign them in the
+**  array given as an argument. 
+**
+**  EC, December 2022
+*/
+/**************************************************************************/
+void childInterface::
+GetNewCoords( std::vector<double *> &newCoords )
+{
+  tLNode *cn;
+  tMesh<tLNode>::nodeListIter_t ni( mesh->getNodeList() );
+
+  std::cerr<<"size of node list = "<<
+    (*mesh->getNodeList()).getSize()<<std::endl;
+
+  for( cn=ni.FirstP(); !ni.AtEnd(); cn=ni.NextP() )
+  {
+    // Need to update only the vertical coordinates.
+    (newCoords)[cn->getPermID()][2] = cn->getZ();
+  }
 }

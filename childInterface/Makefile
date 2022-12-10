@@ -1,6 +1,6 @@
 CXX=g++
 
-CCFLAGS=-g -fPIC -I. -I../child/Code/ChildInterface
+CCFLAGS=-g -fPIC -I. -I../child/Code -I../child/Code/ChildInterface
 LDFLAGS=-g -shared -lstdc++ -L../child/bin -lchild
 #LDFLAGS=-g -dynamiclib -flat_namespace -undefined suppress -lstdc++ -L../child/bin -lchild
 
@@ -17,8 +17,8 @@ default: all
 
 $(SHAREDOBJ): $(OBJS)
 	$(CXX) $(OBJS) $(LDFLAGS) -o $@
-	mkdir ${SNAC_DIR}; mkdir ${SNAC_LIBDIR}; cp -f $@ ${SNAC_LIBDIR}
-	mkdir ${SNAC_INCDIR}; cp -f ${HEADERS} ${SNAC_INCDIR}
+	#mkdir ${SNAC_DIR}; mkdir ${SNAC_LIBDIR}; cp -f $@ ${SNAC_LIBDIR}
+	#mkdir ${SNAC_INCDIR}; cp -f ${HEADERS} ${SNAC_INCDIR}
 
 clean:
 	rm -f $(OBJS)

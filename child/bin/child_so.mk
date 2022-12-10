@@ -33,7 +33,7 @@ all : $(EXENAME)
 
 $(EXENAME): $(OBJECTS)
 	$(CXX) $(LDFLAGS) $(OBJECTS) $(LIBS)
-	mkdir ${SNAC_DIR}; mkdir ${SNAC_LIBDIR}; cp -f $(EXENAME) ${SNAC_LIBDIR}
+	#mkdir ${SNAC_DIR}; mkdir ${SNAC_LIBDIR}; cp -f $(EXENAME) ${SNAC_LIBDIR}
 
 erosion.$(OBJEXT): $(PT)/Erosion/erosion.cpp
 	$(CXX) $(CFLAGS) $(PT)/Erosion/erosion.cpp
